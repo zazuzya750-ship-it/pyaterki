@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Долг пятёрками</title>
+<meta name="description" content="Сын отдаёт долг пятёрками: остаток, списания по предметам и дневник с датами.">
+<meta name="theme-color" content="#f8fafd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#142028" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Пятёрки">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: one narrow column on a squared exercise-book page; red-pen fives, blue ink, a ring that empties as the debt shrinks */
+:root {
+  --paper: #f8fafd;
+  --grid: #dbe5f3;
+  --margin: #f2a0a0;
+  --ink: #1f3a8a;
+  --text: #22283a;
+  --muted: #6b7489;
+  --card: #ffffff;
+  --line: #e3e8f1;
+  --red: #d93a2b;
+  --red-soft: #fde7e4;
+  --green: #1f9d55;
+  --green-soft: #e1f5e9;
+  --gold: #f5b301;
+  --font-hand: "Caveat", "Comic Sans MS", cursive;
+  --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #142028; --grid: #1f2f3a; --margin: #6b3434; --ink: #9db8ff; --text: #e8edf5;
+    --muted: #93a0b4; --card: #1b2a35; --line: #2a3b48; --red: #ff6b5c; --red-soft: #3a2224;
+    --green: #4fd08a; --green-soft: #1b3a2b; --gold: #ffcc33; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+}
+.wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1 {
+  font-family: var(--font-hand); font-weight: 700; color: var(--ink);
+  font-size: 2.6rem; line-height: 1; margin: 0; text-wrap: balance;
+}
+h1 .five { color: var(--red); display: inline-block; transform: rotate(-8deg); }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: .95rem; }
+h2 { font-family: var(--font-hand); color: var(--ink); font-size: 1.8rem; margin: 0; line-height: 1.1; }
+
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+  padding: 18px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 2px 0 var(--line);
+}
+
+/* Hero */
+.hero { flex-direction: row; align-items: center; gap: 18px; flex-wrap: wrap; }
+.ring { position: relative; width: 150px; height: 150px; flex: none; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .track { stroke: var(--red-soft); }
+.ring .bar { stroke: var(--green); transition: stroke-dashoffset .8s cubic-bezier(.3,1.4,.5,1); }
+.ring .mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring .pct { font-family: var(--font-hand); font-size: 2.6rem; font-weight: 700; color: var(--green); line-height: 1; }
+.ring .pct-l { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.stats { flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 10px; }
+.stat-l { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+.stat-v { font-weight: 800; font-variant-numeric: tabular-nums; }
+.left .stat-v { font-size: 2.2rem; color: var(--red); line-height: 1.05; }
+.row2 { display: flex; gap: 18px; flex-wrap: wrap; }
+.row2 .stat-v { font-size: 1.15rem; }
+.paid .stat-v { color: var(--green); }
+.done-banner {
+  display: none; background: var(--green-soft); color: var(--green); border-radius: 14px;
+  padding: 14px; text-align: center; font-family: var(--font-hand); font-size: 1.8rem; font-weight: 700;
+}
+.is-done .done-banner { display: block; }
+
+/* Add form */
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.chip {
+  font: inherit; font-size: .95rem; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--paper); color: var(--text);
+  border-radius: 12px; padding: 9px 11px; display: flex; justify-content: space-between; gap: 6px; align-items: center;
+  transition: transform .1s, border-color .15s, background .15s;
+}
+.chip:active { transform: scale(.97); }
+.chip .p { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; font-size: .85rem; white-space: nowrap; }
+.chip.big .p { color: var(--green); }
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--card); }
+.chip[aria-pressed="true"] .p { color: var(--card); }
+.chip:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.group-l { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 130px; }
+.field label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+input[type="date"], input[type="number"], input[type="text"] {
+  font: inherit; color: var(--text); background: var(--paper); border: 1.5px solid var(--line);
+  border-radius: 12px; padding: 9px 11px; width: 100%; min-height: 44px;
+}
+.stepper { display: flex; align-items: center; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--paper); min-height: 44px; }
+.stepper button { font: inherit; font-size: 1.3rem; font-weight: 800; width: 44px; align-self: stretch; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.stepper span { flex: 1; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.add-btn {
+  font: inherit; font-weight: 800; font-size: 1.1rem; cursor: pointer; border: 0;
+  background: var(--red); color: #fff; border-radius: 14px; padding: 14px; min-height: 52px;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--red) 60%, black);
+  transition: transform .1s, box-shadow .1s;
+}
+.add-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 color-mix(in srgb, var(--red) 60%, black); }
+.add-btn:disabled { opacity: .45; cursor: not-allowed; }
+.hint { font-size: .85rem; color: var(--muted); margin: 0; }
+.sel { display: flex; flex-direction: column; gap: 8px; }
+.sel-row { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "n n" "st s"; gap: 6px 12px; align-items: center; padding-block: 8px; border-top: 1px dashed var(--line); }
+.sel-row:first-child { border-top: 0; padding-top: 0; }
+.sel-row .n { grid-area: n; font-weight: 700; min-width: 0; }
+.sel-row .stepper { grid-area: st; }
+.sel-row .s { grid-area: s; justify-self: end; }
+.sel-row .s { font-weight: 800; color: var(--red); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sel-row .stepper { width: 128px; }
+
+/* By subject */
+.subj { display: flex; flex-direction: column; gap: 10px; }
+.subj-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+.subj-row .n { font-weight: 700; min-width: 0; }
+.subj-row .s { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--green); }
+.subj-row .meter { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--paper); border: 1px solid var(--line); overflow: hidden; }
+.subj-row .meter i { display: block; height: 100%; background: var(--green); border-radius: 4px; }
+.subj-row .c { grid-column: 1 / -1; font-size: .8rem; color: var(--muted); }
+
+/* Journal */
+.day { display: flex; flex-direction: column; gap: 6px; }
+.day + .day { border-top: 1px dashed var(--line); padding-top: 12px; }
+.day-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.day-h b { font-family: var(--font-hand); font-size: 1.45rem; color: var(--ink); }
+.day-h span { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.entry { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 10px; align-items: center; }
+.mark {
+  font-family: var(--font-hand); font-weight: 700; color: var(--red); font-size: 2rem; line-height: 1;
+  width: 40px; height: 40px; display: grid; place-items: center; border: 2px solid var(--red); border-radius: 50%;
+  transform: rotate(-6deg);
+}
+.entry .what { min-width: 0; }
+.entry .what b { display: block; overflow-wrap: anywhere; }
+.entry .what small { color: var(--muted); }
+.entry .amt { font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.del { font: inherit; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 1.2rem; width: 36px; height: 36px; border-radius: 10px; }
+.del.confirm { background: var(--red); color: #fff; font-size: .8rem; font-weight: 800; width: auto; padding: 0 10px; }
+.empty { color: var(--muted); text-align: center; padding: 10px 0; margin: 0; }
+.empty b { font-family: var(--font-hand); font-size: 1.5rem; color: var(--ink); display: block; }
+
+/* Settings */
+details summary { cursor: pointer; color: var(--muted); font-weight: 700; list-style: none; }
+details summary::-webkit-details-marker { display: none; }
+details[open] summary { margin-bottom: 12px; }
+.ghost-btn { font: inherit; font-weight: 800; cursor: pointer; border: 1.5px solid var(--ink); color: var(--ink); background: transparent; border-radius: 12px; padding: 0 16px; min-height: 44px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(120px);
+  background: var(--ink); color: var(--card); padding: 12px 18px; border-radius: 14px; font-weight: 800;
+  transition: transform .3s; z-index: 20; max-width: calc(100% - 32px); text-align: center;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.status { font-size: .85rem; color: var(--muted); text-align: center; margin: 0; }
+
+.install { flex-direction: row; align-items: center; gap: 12px; flex-wrap: wrap; }
+.install p { margin: 0; flex: 1; min-width: 180px; }
+.install-close { font: inherit; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 1.2rem; width: 36px; height: 36px; }
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 15; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ring .bar, .toast, .chip, .add-btn { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <h1>Долг пятёрками <span class="five">5</span></h1>
+    <p class="sub">Русский, математика и чтение — 200 ₽ за пятёрку, остальные предметы — 100 ₽.</p>
+  </header>
+
+  <section class="card install" id="install" hidden>
+    <p id="installText"></p>
+    <button class="ghost-btn" id="installBtn" type="button" hidden>Установить</button>
+    <button class="install-close" id="installClose" type="button" aria-label="Скрыть">×</button>
+  </section>
+
+  <section class="card hero" id="hero" aria-live="polite">
+    <div class="ring" aria-hidden="true">
+      <svg viewBox="0 0 120 120">
+        <circle class="track" cx="60" cy="60" r="50" fill="none" stroke-width="14"></circle>
+        <circle class="bar" id="ringBar" cx="60" cy="60" r="50" fill="none" stroke-width="14" stroke-linecap="round"
+          stroke-dasharray="314.16" stroke-dashoffset="314.16"></circle>
+      </svg>
+      <div class="mid"><div class="pct" id="pct">0%</div><div class="pct-l">отдано</div></div>
+    </div>
+    <div class="stats">
+      <div class="left"><div class="stat-l">Осталось</div><div class="stat-v" id="left">—</div></div>
+      <div class="row2">
+        <div class="paid"><div class="stat-l">Списано</div><div class="stat-v" id="paid">—</div></div>
+        <div><div class="stat-l">Было</div><div class="stat-v" id="debt">—</div></div>
+        <div><div class="stat-l">Пятёрок</div><div class="stat-v" id="fives">—</div></div>
+      </div>
+    </div>
+    <div class="done-banner" style="flex-basis:100%">Долг погашен! Ура! 🎉</div>
+  </section>
+
+  <section class="card" aria-labelledby="addH">
+    <h2 id="addH">Записать пятёрку</h2>
+    <div class="group-l">По 200 ₽</div>
+    <div class="chips" id="chipsBig"></div>
+    <div class="group-l">По 100 ₽</div>
+    <div class="chips" id="chipsSmall"></div>
+    <p class="hint">Можно отметить сразу несколько предметов. Если по одному предмету несколько пятёрок, поставь число кнопкой +.</p>
+    <div class="sel" id="sel" hidden></div>
+    <div class="form-row">
+      <div class="field"><label for="date">Дата</label><input type="date" id="date"></div>
+    </div>
+    <button class="add-btn" id="addBtn" disabled>Выбери предметы</button>
+    <p class="status" id="status">Подключаемся к тетрадке…</p>
+  </section>
+
+  <section class="card" aria-labelledby="subjH">
+    <h2 id="subjH">По предметам</h2>
+    <div class="subj" id="subj"><p class="empty">Тут появятся предметы, за которые уже списано.</p></div>
+  </section>
+
+  <section class="card" aria-labelledby="logH">
+    <h2 id="logH">Дневник</h2>
+    <div id="log"><p class="empty"><b>Пока пусто</b>Выбери предмет выше и нажми «Записать».</p></div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>⚙️ Изменить сумму долга</summary>
+      <div class="form-row">
+        <div class="field"><label for="debtInput">Сумма долга, ₽</label><input type="number" id="debtInput" inputmode="numeric" min="0" step="50"></div>
+        <button class="ghost-btn" id="saveDebt" type="button">Сохранить</button>
+      </div>
+    </details>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<canvas class="confetti" id="confetti"></canvas>
+
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
